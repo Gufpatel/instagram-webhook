@@ -6,8 +6,7 @@ export default async ({ req, res, log, error }) => {
 
     // 1. Meta Webhook Handshake Verification (GET request)
     if (req.method === 'GET') {
-        // Appwrite requires us to parse the URL parameters manually
-        const queryString = req.url.includes('?') ? req.url.split('?')[1] : (req.queryString || "");
+        const queryString = req.url && req.url.includes('?') ? req.url.split('?')[1] : (req.queryString || "");
         const params = new URLSearchParams(queryString);
         
         const mode = params.get('hub.mode');
@@ -19,7 +18,6 @@ export default async ({ req, res, log, error }) => {
             return res.text(challenge, 200);
         }
         
-        log(`Failed validation. Expected ${VERIFY_TOKEN}, got ${token}`);
         return res.text('Forbidden', 403);
     }
 
