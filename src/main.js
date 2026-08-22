@@ -15,10 +15,11 @@ export default async ({ req, res, log, error }) => {
 
         if (mode === 'subscribe' && token === VERIFY_TOKEN) {
             log('Webhook verified successfully!');
-            return res.text(challenge, 200);
+            // Meta explicitly requires a raw string response for the challenge
+            return res.send(challenge, 200, { 'Content-Type': 'text/plain' });
         }
         
-        return res.text('Forbidden', 403);
+        return res.send('Forbidden', 403, { 'Content-Type': 'text/plain' });
     }
 
     // 2. Handling Incoming Instagram Comments (POST request)
@@ -52,8 +53,8 @@ export default async ({ req, res, log, error }) => {
                 }
             }
         }
-        return res.text('EVENT_RECEIVED', 200);
+        return res.send('EVENT_RECEIVED', 200, { 'Content-Type': 'text/plain' });
     }
 
-    return res.text('Method Not Allowed', 405);
+    return res.send('Method Not Allowed', 405, { 'Content-Type': 'text/plain' });
 };
