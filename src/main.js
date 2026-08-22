@@ -1,20 +1,25 @@
 import axios from 'axios';
 
 export default async ({ req, res, log, error }) => {
-    // Environment variables set in your Appwrite Settings
     const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
     const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 
     // 1. Meta Webhook Handshake Verification (GET request)
     if (req.method === 'GET') {
-        const mode = req.query['hub.mode'];
-        const token = req.query['hub.verify_token'];
-        const challenge = req.query['hub.challenge'];
+        // Appwrite requires us to parse the URL parameters manually
+        const queryString = req.url.includes('?') ? req.url.split('?')[1] : (req.queryString || "");
+        const params = new URLSearchParams(queryString);
+        
+        const mode = params.get('hub.mode');
+        const token = params.get('hub.verify_token');
+        const challenge = params.get('hub.challenge');
 
         if (mode === 'subscribe' && token === VERIFY_TOKEN) {
             log('Webhook verified successfully!');
             return res.text(challenge, 200);
         }
+        
+        log(`Failed validation. Expected ${VERIFY_TOKEN}, got ${token}`);
         return res.text('Forbidden', 403);
     }
 
@@ -30,7 +35,6 @@ export default async ({ req, res, log, error }) => {
                             const commentText = change.value.text?.toLowerCase();
                             const commenterId = change.value.from.id;
 
-                            // Trigger keyword check (e.g. "video", "app", etc.)
                             if (commentText && (commentText.includes('video') || commentText.includes('app'))) {
                                 try {
                                     await axios.post(
@@ -50,8 +54,6 @@ export default async ({ req, res, log, error }) => {
                 }
             }
         }
-
-        // Meta requires an immediate 200 response
         return res.text('EVENT_RECEIVED', 200);
     }
 
