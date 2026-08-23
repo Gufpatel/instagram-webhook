@@ -1,26 +1,18 @@
 export default async ({ req, res, log }) => {
-    try {
-        // Safely extract the query string in Appwrite's environment
-        const urlStr = req.url || "";
-        const queryPart = urlStr.includes('?') ? urlStr.split('?')[1] : (req.queryString || "");
+    // 1. Combine everything Appwrite gives us into one giant string
+    const allData = (req.url || "") + (req.queryString || "") + (req.path || "");
+    
+    // 2. Use a brute-force regex to hunt for "hub.challenge=" and grab the exact numbers
+    const match = allData.match(/hub\.challenge=([0-9]+)/);
+    
+    if (match && match[1]) {
+        const challenge = match[1];
+        log("Intercepted: " + challenge);
         
-        const params = new URLSearchParams(queryPart);
-        const challenge = params.get('hub.challenge');
-        
-        log("Intercepted Challenge: " + challenge);
-        
-        // If Meta sends a challenge, respond using Appwrite's res.send format
-        if (challenge) {
-            return res.send(challenge, 200, {
-                'Content-Type': 'text/plain'
-            });
-        }
-        
-        // Default success response
-        return res.send('Webhook endpoint is live.', 200);
-        
-    } catch (err) {
-        log("Code Error: " + err.message);
-        return res.send('Server Error', 500);
+        // 3. Send back ONLY the exact numbers. No headers, no JSON, pure raw string.
+        return res.send(challenge, 200);
     }
+    
+    log("No challenge found. Data was: " + allData);
+    return res.send("Webhook live", 200);
 };
