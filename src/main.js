@@ -6,19 +6,27 @@ export default async ({ req, res, log, error }) => {
 
     // 1. Meta Webhook Handshake Verification (GET request)
     if (req.method === 'GET') {
-        const queryString = req.url && req.url.includes('?') ? req.url.split('?')[1] : (req.queryString || "");
-        const params = new URLSearchParams(queryString);
-        
-        const mode = params.get('hub.mode');
-        const token = params.get('hub.verify_token');
-        const challenge = params.get('hub.challenge');
+        // Appwrite stores query params differently based on versions. We check all locations.
+        let mode = req.query ? req.query['hub.mode'] : null;
+        let token = req.query ? req.query['hub.verify_token'] : null;
+        let challenge = req.query ? req.query['hub.challenge'] : null;
+
+        if (!mode) {
+            const queryStr = req.queryString || (req.url && req.url.includes('?') ? req.url.split('?')[1] : "");
+            const params = new URLSearchParams(queryStr);
+            mode = params.get('hub.mode');
+            token = params.get('hub.verify_token');
+            challenge = params.get('hub.challenge');
+        }
 
         if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-            log('Webhook verified successfully!');
-            return res.send(challenge, 200, { 'Content-Type': 'text/plain' });
+            log(`Webhook verified successfully! Challenge: ${challenge}`);
+            // Appwrite's res.text() guarantees a raw string/int return without JSON wrappers
+            return res.text(challenge);
         }
         
-        return res.send('Forbidden', 403, { 'Content-Type': 'text/plain' });
+        error(`Validation failed. Expected: ${VERIFY_TOKEN} | Got: ${token}`);
+        return res.text('Forbidden', 403);
     }
 
     // 2. Handling Incoming Instagram Comments (POST request)
@@ -52,8 +60,8 @@ export default async ({ req, res, log, error }) => {
                 }
             }
         }
-        return res.send('EVENT_RECEIVED', 200, { 'Content-Type': 'text/plain' });
+        return res.text('EVENT_RECEIVED', 200);
     }
 
-    return res.send('Method Not Allowed', 405, { 'Content-Type': 'text/plain' });
+    return res.text('Method Not Allowed', 405);
 };
