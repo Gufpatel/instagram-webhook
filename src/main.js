@@ -1,15 +1,26 @@
 export default async ({ req, res, log }) => {
-    // 1. Grab the challenge directly from Appwrite's parsed query object
-    const challenge = req.query ? req.query['hub.challenge'] : null;
-    
-    // 2. Log it so we can see it working
-    log('Intercepted Challenge: ' + challenge);
-    
-    // 3. If Meta sends a challenge, bounce it back immediately in plain text
-    if (challenge) {
-        return res.text(challenge);
+    try {
+        // Safely extract the query string in Appwrite's environment
+        const urlStr = req.url || "";
+        const queryPart = urlStr.includes('?') ? urlStr.split('?')[1] : (req.queryString || "");
+        
+        const params = new URLSearchParams(queryPart);
+        const challenge = params.get('hub.challenge');
+        
+        log("Intercepted Challenge: " + challenge);
+        
+        // If Meta sends a challenge, respond using Appwrite's res.send format
+        if (challenge) {
+            return res.send(challenge, 200, {
+                'Content-Type': 'text/plain'
+            });
+        }
+        
+        // Default success response
+        return res.send('Webhook endpoint is live.', 200);
+        
+    } catch (err) {
+        log("Code Error: " + err.message);
+        return res.send('Server Error', 500);
     }
-    
-    // Default response for anything else
-    return res.text('Ready for webhooks!');
 };
