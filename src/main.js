@@ -15,7 +15,6 @@ export default async ({ req, res, log, error }) => {
 
         if (mode === 'subscribe' && token === VERIFY_TOKEN) {
             log('Webhook verified successfully!');
-            // Meta explicitly requires a raw string response for the challenge
             return res.send(challenge, 200, { 'Content-Type': 'text/plain' });
         }
         
