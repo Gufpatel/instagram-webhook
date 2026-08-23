@@ -3,7 +3,7 @@ import axios from 'axios';
 export default async ({ req, res, log, error }) => {
     const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 
-    // 1. Webhook Handshake
+    // 1. Webhook Verification Handshake
     if (req.method === 'GET' || req.method === 'get') {
         const urlStr = req.url || "";
         const queryPart = urlStr.includes('?') ? urlStr.split('?')[1] : (req.queryString || "");
@@ -16,41 +16,35 @@ export default async ({ req, res, log, error }) => {
     // 2. Incoming Event Processing
     if (req.method === 'POST' || req.method === 'post') {
         try {
-            // Force parse the body
             let body = req.body;
             if (typeof body === 'string') {
                 body = JSON.parse(body);
             }
 
-            // 🚨 X-RAY LOG: Print the exact payload from Meta
-            log("=== META PAYLOAD ===");
-            log(JSON.stringify(body));
-
             if (body && body.entry) {
                 for (const entry of body.entry) {
                     if (entry.changes) {
                         for (const change of entry.changes) {
-                            log("Found change field: " + change.field);
-                            
                             if (change.field === 'comments') {
                                 const commentText = change.value?.text?.toLowerCase() || "";
                                 const commentId = change.value?.id;
                                 
-                                log("Extracted Comment Text: " + commentText);
+                                log(`Captured Real Comment: "${commentText}" (ID: ${commentId})`);
 
-                                if (commentText.includes('app') || commentText.includes('video')) {
-                                    log("Trigger word matched! Sending DM...");
+                                // Expanded triggers: catches "app", "want", "video", etc.
+                                if (commentText.includes('app') || commentText.includes('video') || commentText.includes('want')) {
+                                    log("Trigger matched! Sending Private Reply...");
                                     
                                     const response = await axios.post(
                                         `https://graph.facebook.com/v20.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
                                         {
                                             recipient: { comment_id: commentId },
-                                            message: { text: 'Thanks for your interest! Here is your download link: https://yourlink.com' }
+                                            message: { text: 'Thanks for your interest! Download the Vaidehi Cinema app here: https://yourlink.com' }
                                         }
                                     );
-                                    log("DM Success! ID: " + response.data.message_id);
+                                    log("DM Sent Successfully! Message ID: " + response.data.message_id);
                                 } else {
-                                    log("No trigger words found in comment.");
+                                    log("Comment did not contain trigger words.");
                                 }
                             }
                         }
@@ -58,7 +52,7 @@ export default async ({ req, res, log, error }) => {
                 }
             }
         } catch (err) {
-            error("Code Error: " + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
+            error("API Error: " + (err.response?.data ? JSON.stringify(err.response.data) : err.message));
         }
         return res.send('EVENT_RECEIVED', 200);
     }
